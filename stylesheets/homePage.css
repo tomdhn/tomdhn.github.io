@@ -1,0 +1,47 @@
+.header{
+    font-family: "Calibri", Arial, cursive;
+    font-weight: bolder;
+    border-bottom: 4px solid black;
+    font-size: 3rem;
+    text-align: center;
+    width: 300px;
+    padding: 1.3rem 1.3rem 0;
+    margin: auto;
+    overflow: auto;
+}
+
+.navOpdrachten{
+    width: 250px;
+    margin: auto;
+    overflow: auto;
+    padding: 0 2rem;
+}
+
+.navOpdrachten ul li {
+    list-style: none;
+    margin: 2rem 0;
+}
+
+.navOpdrachten ul li a{
+    font-size: 1.2rem;
+    display: inline-block;
+    position: relative;
+}
+
+.navOpdrachten ul li a:after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    transform: scaleX(0);
+    height: 4px;
+    bottom: 0;
+    left: 0;
+    background-color: black;
+    transform-origin: bottom right;
+    transition: transform 0.25s ease-out;
+}
+
+.navOpdrachten ul li a:hover:after {
+    transform: scaleX(1);
+    transform-origin: bottom left;
+}

@@ -1,0 +1,41 @@
+.kaart{
+    margin: auto;
+    border: 4px solid black;
+    border-radius: 5px;
+}
+
+.kaart:hover {
+    filter: contrast(80%);
+}
+
+#kaartContainer {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    grid-column-gap: 3px;
+    grid-row-gap: 3px;
+    margin: 50px auto;
+    width:fit-content;
+}
+
+#start{
+    margin: 20vw auto 0;
+    display: block;
+    width: 150px;
+    background-color:#44c767;
+    border-radius:9px;
+    border:2px solid #18ab29;
+    cursor:pointer;
+    color:#ffffff;
+    font-family: Trebuchet MS, serif;
+    font-size:28px;
+    padding:18px 43px;
+    text-decoration:none;
+}
+#start:hover {
+    background-color:#5cbf2a;
+}
+#start:active {
+    position:relative;
+    top:1px;
+}

@@ -1,0 +1,37 @@
+.grid{
+    display: grid;
+    grid-template-areas: 'a';
+}
+
+.grid *{
+    align-items: center;
+    text-align: center;
+    width: 100%;
+}
+
+.gridHeader{
+    background-color: #dcd5fe
+}
+
+.gridNav{
+    background-color: #c6c0fe
+}
+
+.gridMain{
+    background-color: #f9f7d1
+}
+
+.gridAside{
+    background-color: #d4ffd1
+}
+
+.gridFooter{
+    background-color: #ffd1d1
+}
+
+.caption {
+    font-family: helvetica;
+    font-size: 16px;
+    margin-top: 12px;
+}
+

@@ -1,0 +1,121 @@
+/** Volgende CSS gaan we ze geven **/
+.respimg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+*{
+    margin: 0;
+    font-family: Helvetica, sans-serif;
+}
+
+head{
+
+}
+
+h1{
+    text-transform: uppercase;
+    font-size: 2.5em;
+    width: 100%;
+    border-bottom: 2px solid black;
+    padding-bottom: 1em;
+    margin-bottom: 1em;
+}
+
+h2{
+    font-size: 1.5em;
+    margin-bottom: 1em;
+}
+
+.header{
+    width: 100%;
+    border-bottom: 1px solid #ebe8e8;
+}
+
+header{
+    width: 600px;
+    margin: auto;
+}
+
+header img{
+    max-height: 50px;
+}
+
+@media only screen and (min-width: 770px){
+    header{
+        width: 750px;
+    }
+    .nav{
+        width: 750px;
+    }
+}
+
+@media only screen and (min-width: 1000px){
+    header{
+        width: 950px;
+    }
+    .nav{
+        width: 750px;
+    }
+}
+
+.nav {
+    width: 100%;
+}
+
+.nav ul{
+    display: grid;
+    grid-template-areas: 'a b c d e f g';
+    padding-left: 0;
+}
+
+.nav ul li{
+    list-style: none;
+    padding: 10px 0;
+    text-align: center;
+    border-left: 1px solid #ebe8e8;
+}
+
+.nav ul li a{
+    text-decoration: none;
+    text-transform: uppercase;
+    color: #5b4746;
+    font-size: 13px;
+}
+
+.nav ul li a{
+    display: inline-block;
+    position: relative;
+}
+
+.nav ul li a:after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    transform: scaleX(0);
+    height: 4px;
+    bottom: 0;
+    left: 0;
+    background-color: #fff100;
+    transform-origin: bottom right;
+    transition: transform 0.25s ease-out;
+}
+
+.nav ul li a:hover:after {
+    transform: scaleX(1);
+    transform-origin: bottom left;
+}
+.nav ul li:first-child{
+    border: none;
+}
+
+.main{
+    width: 100%;
+    border-top: 1px solid #ebe8e8;
+    background-image: url("images/headerimage.jpg");
+}
+
+.main:first-child{
+    width:100%;
+}

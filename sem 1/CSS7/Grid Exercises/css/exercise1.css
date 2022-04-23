@@ -1,0 +1,12 @@
+.container{
+    background-color: cornflowerblue;
+    display: grid;
+    grid-template-areas: 'a a a';
+}
+
+.container .block{
+    min-width: 0;
+    margin:50px;
+    padding:50px;
+    background-color: white;
+}
