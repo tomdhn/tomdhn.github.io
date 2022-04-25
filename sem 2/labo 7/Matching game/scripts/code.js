@@ -22,13 +22,15 @@ const toonKaart = (event) => {
     if(event.target.id > 6){
         nummer -= 6;
     }
-    if(global.AANTAL_GEDRAAIDE_KAARTEN !== 2 && global.IMAGE_PATH_PREFIX + "/kaart" + nummer + ".png" !== global.GEDRAAIDE_KAART){
+    if(global.AANTAL_GEDRAAIDE_KAARTEN !== 2 && global.IMAGE_PATH_PREFIX + "/kaart" + nummer + ".png" !== global.GEDRAAIDE_KAART.src){
         event.target.src = global.IMAGE_PATH_PREFIX + "/kaart" + nummer + ".png";
         global.AANTAL_GEDRAAIDE_KAARTEN += 1;
         if(global.AANTAL_GEDRAAIDE_KAARTEN === 2){
-            if(event.target.src === global.GEDRAAIDE_KAART){
+            if(event.target.src === global.GEDRAAIDE_KAART.src){
                 clearInterval(global.INTERVAL);
-                global.GEVONDEN_KAARTEN.push(event.target.src, global.GEDRAAIDE_KAART);
+                global.GEDRAAIDE_KAART.style.borderColor = "lime";
+                event.target.style.borderColor = "lime";
+                global.GEVONDEN_KAARTEN.push(event.target.src, global.GEDRAAIDE_KAART.src);
                 global.AANTAL_GEDRAAIDE_KAARTEN = 0;
                 if(global.GEVONDEN_KAARTEN.length === kaarten.length * 2){
                     startButton.style.display= "block";
@@ -38,7 +40,7 @@ const toonKaart = (event) => {
                 global.GEDRAAIDE_KAART = "";
             }
         }
-        global.GEDRAAIDE_KAART = event.target.src;
+        global.GEDRAAIDE_KAART = event.target;
     }
 }
 
