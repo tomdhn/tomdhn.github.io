@@ -15,7 +15,7 @@ The deploy output shows the Worker URL, usually `https://txtango-soap-proxy.<you
 
 ## Connect GitHub Pages
 
-Open the published TxTango API page and paste the deployed URL into the **Cloudflare Worker URL** field at the top. The page uses that URL as the request destination; the URL is not saved after reload.
+The GitHub Pages client is preconfigured with `https://txtango-soap-proxy.dhoine-tom.workers.dev/`. Open the published page and confirm that URL appears in the **Cloudflare Worker URL** field. Update the value in `index.html` if you redeploy the Worker under a different URL.
 
 ## Configuration and security
 
