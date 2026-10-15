@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Static, searchable catalog of the supplied TxTango IWS SOAP operations.">
+  <title>TxTango API Reference</title>
+  <style>
+    @import url("style.css");
+    </style>
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand-mark" aria-hidden="true">TX</span>
+    <span>TxTango API</span>
+    <span style="opacity:.6;font-weight:400">/</span>
+    <span style="font-weight:450">IWS reference</span>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">API reference · IWS_ASMX</p>
+      <h1 id="page-title">TxTango API Reference</h1>
+      <p class="subtitle">Browse the supplied TxTango IWS operations. Enter shared login details once, then send SOAP requests and inspect the responses.</p>
+      <div class="notice"><strong>Request note:</strong> Operation-specific XML arguments are not inferred except for the supplied Get_Users example. Edit each operation's argument XML to match its official service documentation. The service must allow browser cross-origin requests (CORS) for requests to work from this page.</div>
+    </section>
+
+    <section class="login-panel" aria-labelledby="login-heading">
+      <h2 class="panel-heading" id="login-heading">Shared Login</h2>
+      <p class="panel-hint">These fields are included in the Login block for every SOAP request.</p>
+      <div class="login-fields">
+        <label class="field-label" for="login-datetime">DateTime
+          <input class="field-input" id="login-datetime" name="datetime" placeholder="dateTime">
+        </label>
+        <label class="field-label" for="login-version">Version
+          <input class="field-input" id="login-version" name="version" inputmode="numeric" placeholder="int">
+        </label>
+        <label class="field-label" for="login-dispatcher">Dispatcher
+          <input class="field-input" id="login-dispatcher" name="dispatcher" autocomplete="off" value="ADMINF">
+        </label>
+        <label class="field-label" for="login-password">Password
+          <input class="field-input" id="login-password" name="password" type="password" autocomplete="off">
+        </label>
+        <label class="field-label" for="login-system-number">SystemNr
+          <input class="field-input" id="login-system-number" name="system-number" inputmode="numeric">
+        </label>
+        <label class="field-label" for="login-application-name">ApplicationName
+          <input class="field-input" id="login-application-name" name="application-name" placeholder="string">
+        </label>
+        <label class="field-label" for="login-application-version">ApplicationVersion
+          <input class="field-input" id="login-application-version" name="application-version" placeholder="string">
+        </label>
+        <label class="field-label" for="login-pc-name">PcName
+          <input class="field-input" id="login-pc-name" name="pc-name" placeholder="string">
+        </label>
+        <label class="field-label" for="login-integrator">Integrator
+          <input class="field-input" id="login-integrator" name="integrator" value="rddclient">
+        </label>
+        <label class="field-label" for="login-language">Language
+          <input class="field-input" id="login-language" name="language" placeholder="e.g. FR">
+        </label>
+      </div>
+      <p class="privacy-hint">This page does not write credentials to storage; values remain in the fields until you close or reload it. Browser password managers may still offer their own autofill.</p>
+    </section>
+
+    <section aria-label="API operations">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <label for="search" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">Search operations</label>
+          <input id="search" type="search" placeholder="Search operations…" autocomplete="off">
+        </div>
+        <button class="tool-button" id="expand-all" type="button">Expand all</button>
+        <button class="tool-button" id="collapse-all" type="button">Collapse all</button>
+      </div>
+      <p class="stats" id="stats" aria-live="polite"></p>
+      <div id="operations"></div>
+      <p class="empty" id="empty">No operations match your search.</p>
+    </section>
+    <footer>TxTango IWS · Static reference generated from the supplied operation list</footer>
+  </main>
+
+  <script src="script.js" type="module"></script>
+</body>
+</html>
