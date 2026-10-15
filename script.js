@@ -1,4 +1,4 @@
-    "use strict";
+"use strict";
     const serviceUrl = "https://txtangob.tx-connect.com/IWS_ASMX/Service.asmx";
     const xmlNamespace = "http://transics.org";
     const operationNames = `
@@ -394,6 +394,7 @@ Update_ViaRoute
       Get_Users: `      <UserSelection>
         <IncludeInactive>true</IncludeInactive>
         <Identifiers>
+          
         </Identifiers>
       </UserSelection>`,
       Get_Drivers: `      <DriverSelection>
@@ -516,7 +517,22 @@ Update_ViaRoute
           const requestLabel = document.createElement("label");
           requestLabel.className = "request-label";
           requestLabel.htmlFor = argsId;
-          requestLabel.textContent = "Operation arguments (XML)";
+          requestLabel.textContent = "Operation arguments";
+          const editorSwitch = document.createElement("div");
+          editorSwitch.className = "editor-switch";
+          editorSwitch.setAttribute("role", "group");
+          editorSwitch.setAttribute("aria-label", `${name} argument editor mode`);
+          const xmlMode = document.createElement("button");
+          xmlMode.className = "editor-mode";
+          xmlMode.type = "button";
+          xmlMode.textContent = "XML";
+          xmlMode.setAttribute("aria-pressed", "true");
+          const fieldsMode = document.createElement("button");
+          fieldsMode.className = "editor-mode";
+          fieldsMode.type = "button";
+          fieldsMode.textContent = "Fields";
+          fieldsMode.setAttribute("aria-pressed", "false");
+          editorSwitch.append(xmlMode, fieldsMode);
           const editor = document.createElement("textarea");
           editor.className = "xml-editor";
           editor.id = argsId;
@@ -524,6 +540,56 @@ Update_ViaRoute
           editor.setAttribute("aria-label", `${name} operation arguments as XML`);
           editor.placeholder = "Add this operation's XML argument elements here.";
           editor.value = argumentTemplates[name] || "";
+          const fieldEditor = document.createElement("div");
+          fieldEditor.className = "field-editor";
+          fieldEditor.hidden = true;
+          fieldEditor.setAttribute("aria-label", `${name} operation arguments as fields`);
+          const fieldHint = document.createElement("p");
+          fieldHint.className = "field-hint";
+          fieldHint.textContent = "Fields reflect the current XML. Check Omit to leave an element out of the request body.";
+          const omitAllLabel = document.createElement("label");
+          omitAllLabel.className = "omit-field omit-all";
+          const omitAll = document.createElement("input");
+          omitAll.type = "checkbox";
+          omitAll.setAttribute("aria-label", "Omit all operation argument fields");
+          omitAllLabel.append(omitAll, document.createTextNode("Omit all fields"));
+          const fieldContainer = document.createElement("div");
+          fieldContainer.className = "field-editor-content";
+          fieldEditor.append(fieldHint, omitAllLabel, fieldContainer);
+          let fieldModel = null;
+          omitAll.addEventListener("change", () => {
+            fieldModel?.fields.forEach(({ omit }) => { omit.checked = omitAll.checked; });
+            omitAll.indeterminate = false;
+          });
+          xmlMode.addEventListener("click", () => {
+            if (fieldEditor.hidden) return;
+            editor.value = serializeFieldModel(fieldModel);
+            editor.hidden = false;
+            fieldEditor.hidden = true;
+            xmlMode.setAttribute("aria-pressed", "true");
+            fieldsMode.setAttribute("aria-pressed", "false");
+          });
+          fieldsMode.addEventListener("click", () => {
+            if (!fieldEditor.hidden) return;
+            try {
+              fieldModel = createFieldEditor(editor.value, fieldContainer, name);
+              omitAll.checked = false;
+              omitAll.indeterminate = false;
+              omitAllLabel.hidden = fieldModel.fields.length === 0;
+              fieldModel.fields.forEach(({ omit }) => omit.addEventListener("change", () => {
+                const omittedCount = fieldModel.fields.filter((field) => field.omit.checked).length;
+                omitAll.checked = omittedCount === fieldModel.fields.length;
+                omitAll.indeterminate = omittedCount > 0 && omittedCount < fieldModel.fields.length;
+              }));
+              editor.hidden = true;
+              fieldEditor.hidden = false;
+              xmlMode.setAttribute("aria-pressed", "false");
+              fieldsMode.setAttribute("aria-pressed", "true");
+              status.textContent = "";
+            } catch (error) {
+              status.textContent = error.message;
+            }
+          });
           const actions = document.createElement("div");
           actions.className = "request-actions";
           const send = document.createElement("button");
@@ -564,14 +630,17 @@ Update_ViaRoute
           const responseContent = document.createElement("pre");
           responseContent.className = "response-content";
           response.append(responseHeading, responseContent);
-          send.addEventListener("click", () => sendRequest(name, editor, send, status, response, responseStatus, responseContent));
+          send.addEventListener("click", () => {
+            const argumentsXml = fieldEditor.hidden ? editor.value : serializeFieldModel(fieldModel);
+            sendRequest(name, argumentsXml, send, status, response, responseStatus, responseContent);
+          });
           const link = document.createElement("a");
           link.className = "op-link";
           link.href = linkFor(name);
           link.target = "_blank";
           link.rel = "noopener noreferrer";
           link.textContent = "Open official operation documentation ↗";
-          body.append(description, requestLabel, editor, actions, response, link);
+          body.append(description, requestLabel, editorSwitch, editor, fieldEditor, actions, response, link);
           details.append(summary, body);
           section.append(details);
         }
@@ -622,6 +691,144 @@ Update_ViaRoute
       const requiredMissing = missing.filter((name) => !optionalFields.includes(name));
       if (requiredMissing.length) throw new Error(`Missing required login fields: ${requiredMissing.join(", ")}`);
       return values;
+    }
+
+    function suggestionsFor(fieldName) {
+      const name = fieldName.toLowerCase();
+      if (name === "datetimetype") return ["MINUTES", "HOURS", "DAYS", "GET_ALL", "GET_MODIFIED_SINCE_LAST_REQUEST"];
+      if (name === "identifiertype") return ["ID", "TRANSICS_ID", "CODE", "TACHO_CARD_ID"];
+      if (/^(include|is|has|use|active|enabled)/i.test(fieldName)) return ["true", "false"];
+      if (name === "language") return ["EN", "FR", "NL", "DE"];
+      return [];
+    }
+
+    function placeholderFor(fieldName) {
+      if (/date|time/i.test(fieldName)) return "dateTime";
+      if (/^(value|version|systemnr|id)$/i.test(fieldName)) return "int or string";
+      if (/^(include|is|has|use|active|enabled)/i.test(fieldName)) return "true or false";
+      return "Enter a value";
+    }
+
+    function createFieldEditor(xml, container, operationName) {
+      validateArguments(xml);
+      const parsedDocument = new DOMParser().parseFromString(
+        `<argument-fragment xmlns="${xmlNamespace}">${xml}</argument-fragment>`,
+        "application/xml"
+      );
+      const wrapper = parsedDocument.documentElement;
+      const fields = [];
+      const groupPaths = [];
+      container.replaceChildren();
+      const roots = Array.from(wrapper.children);
+
+      if (!roots.length) {
+        const empty = document.createElement("p");
+        empty.className = "field-hint";
+        empty.textContent = `No argument fields are defined for ${operationName}. Add the operation's XML arguments in XML mode first.`;
+        container.append(empty);
+      }
+
+      function renderElement(element, parent, path, nodePath) {
+        const fieldName = element.localName || element.nodeName;
+        const children = Array.from(element.children);
+        if (!children.length) {
+          const row = document.createElement("div");
+          row.className = "argument-field";
+          const label = document.createElement("label");
+          label.textContent = path.join(" › ");
+          const input = document.createElement("input");
+          input.className = "argument-input";
+          input.type = "text";
+          input.id = `field-${operationName}-${fields.length}`;
+          label.htmlFor = input.id;
+          input.value = element.textContent.trim();
+          input.placeholder = placeholderFor(fieldName);
+          input.setAttribute("aria-label", `${path.join(" ")} value`);
+          const options = suggestionsFor(fieldName);
+          if (options.length) {
+            const listId = `suggestions-${operationName}-${fields.length}`;
+            const datalist = document.createElement("datalist");
+            datalist.id = listId;
+            options.forEach((option) => {
+              const item = document.createElement("option");
+              item.value = option;
+              datalist.append(item);
+            });
+            input.setAttribute("list", listId);
+            row.append(label, input, datalist);
+          } else {
+            row.append(label, input);
+          }
+          const omitLabel = document.createElement("label");
+          omitLabel.className = "omit-field";
+          const omit = document.createElement("input");
+          omit.type = "checkbox";
+          omit.setAttribute("aria-label", `Omit ${path.join(" ")}`);
+          omitLabel.append(omit, document.createTextNode("Omit"));
+          row.append(omitLabel);
+          parent.append(row);
+          fields.push({ nodePath, input, omit });
+          return;
+        }
+
+        groupPaths.push(nodePath);
+        const group = document.createElement("fieldset");
+        group.className = "field-group";
+        const legend = document.createElement("legend");
+        legend.textContent = fieldName;
+        group.append(legend);
+        parent.append(group);
+        const occurrences = new Map();
+        children.forEach((child, childIndex) => {
+          const childName = child.localName || child.nodeName;
+          const index = (occurrences.get(childName) || 0) + 1;
+          occurrences.set(childName, index);
+          const suffix = children.filter((item) => (item.localName || item.nodeName) === childName).length > 1
+            ? ` [${index}]`
+            : "";
+          renderElement(child, group, [...path, `${childName}${suffix}`], [...nodePath, childIndex]);
+        });
+      }
+
+      const occurrences = new Map();
+      roots.forEach((root, rootIndex) => {
+        const rootName = root.localName || root.nodeName;
+        const index = (occurrences.get(rootName) || 0) + 1;
+        occurrences.set(rootName, index);
+        const suffix = roots.filter((item) => (item.localName || item.nodeName) === rootName).length > 1
+          ? ` [${index}]`
+          : "";
+        renderElement(root, container, [`${rootName}${suffix}`], [rootIndex]);
+      });
+
+      return { wrapper, fields, groupPaths };
+    }
+
+    function serializeFieldModel(model) {
+      if (!model) return "";
+      const wrapper = model.wrapper.cloneNode(true);
+      const locate = (nodePath) => {
+        let element = wrapper;
+        nodePath.forEach((index) => { element = element.children[index]; });
+        return element;
+      };
+      const elements = model.fields.map((field) => ({ ...field, element: locate(field.nodePath) }));
+      const groups = model.groupPaths
+        .slice()
+        .sort((left, right) => right.length - left.length)
+        .map(locate);
+      elements.filter(({ omit }) => !omit.checked).forEach(({ element, input }) => {
+        element.textContent = input.value;
+      });
+      elements.filter(({ omit }) => omit.checked).forEach(({ element }) => element.remove());
+      groups.forEach((element) => {
+        if (element.parentNode !== wrapper && !element.children.length && !element.textContent.trim()) element.remove();
+      });
+
+      return Array.from(wrapper.childNodes)
+        .filter((node) => node.nodeType === Node.ELEMENT_NODE)
+        .map((node) => new XMLSerializer().serializeToString(node))
+        .join("");
     }
 
     function validateArguments(xml) {
@@ -757,13 +964,13 @@ Update_ViaRoute
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
-    async function sendRequest(name, editor, button, status, response, responseStatus, responseContent) {
+    async function sendRequest(name, argumentsXml, button, status, response, responseStatus, responseContent) {
       response.hidden = true;
       responseContent.textContent = "";
       responseContent.dataset.raw = "";
       try {
         const login = readLogin();
-        const argumentsXml = editor.value.trim();
+        argumentsXml = argumentsXml.trim();
         validateArguments(argumentsXml);
         const envelope = buildEnvelope(name, login, argumentsXml);
         button.disabled = true;
