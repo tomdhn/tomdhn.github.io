@@ -973,9 +973,18 @@ Update_ViaRoute
         argumentsXml = argumentsXml.trim();
         validateArguments(argumentsXml);
         const envelope = buildEnvelope(name, login, argumentsXml);
+        const proxyUrlValue = document.getElementById("proxy-url").value.trim();
+        let requestUrl = serviceUrl;
+        if (proxyUrlValue) {
+          const proxyUrl = new URL(proxyUrlValue);
+          if (proxyUrl.protocol !== "https:" || proxyUrl.username || proxyUrl.password) {
+            throw new Error("The Cloudflare Worker URL must use HTTPS and must not contain credentials.");
+          }
+          requestUrl = proxyUrl.href.replace(/\/+$/, "");
+        }
         button.disabled = true;
         status.textContent = "Sending…";
-        const result = await fetch(serviceUrl, {
+        const result = await fetch(requestUrl, {
           method: "POST",
           headers: {
             "Content-Type": "text/xml; charset=utf-8",
@@ -991,7 +1000,7 @@ Update_ViaRoute
         status.textContent = result.ok ? "Request complete." : "Service returned an error status.";
       } catch (error) {
         status.textContent = error instanceof TypeError
-          ? "Request failed; check the network and whether the service permits browser CORS requests."
+          ? "Request failed; check the network and verify the Cloudflare Worker URL and allowed Pages origin."
           : error.message;
       } finally {
         button.disabled = false;

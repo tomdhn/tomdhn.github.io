@@ -21,13 +21,16 @@
       <p class="eyebrow">API reference · IWS_ASMX</p>
       <h1 id="page-title">TxTango API Reference</h1>
       <p class="subtitle">Browse the supplied TxTango IWS operations. Enter shared login details once, then send SOAP requests and inspect the responses.</p>
-      <div class="notice"><strong>Request note:</strong> Switch each operation between XML and Fields editing. Fields are generated from the current XML, include suggestions for common values, and can be omitted individually. Add operation arguments from the official service documentation; the service must allow browser cross-origin requests (CORS) for requests to work from this page.</div>
+      <div class="notice"><strong>Request note:</strong> Switch each operation between XML and Fields editing. Fields are generated from the current XML, include suggestions for common values, and can be omitted individually. SOAP requests are sent through the configured Cloudflare Worker proxy.</div>
     </section>
 
     <section class="login-panel" aria-labelledby="login-heading">
       <h2 class="panel-heading" id="login-heading">Shared Login</h2>
-      <p class="panel-hint">These fields are included in the Login block for every SOAP request.</p>
+      <p class="panel-hint">These fields are included in the Login block for every SOAP request. The configured proxy URL is used only as the request destination.</p>
       <div class="login-fields">
+        <label class="field-label connection-field" for="proxy-url" hidden="true">
+          <input class="field-input" id="proxy-url" name="proxy-url" type="url" inputmode="url" value="https://txtango-soap-proxy.dhoine-tom.workers.dev/" hidden="true">
+        </label>
         <label class="field-label" for="login-datetime">DateTime
           <input class="field-input" id="login-datetime" name="datetime" placeholder="dateTime">
         </label>
