@@ -92,6 +92,7 @@
       gap: 12px;
     }
     .connection-field { grid-column: 1 / -1; }
+    .connection-field[hidden] { display: none; }
     .field-label {
       display: grid;
       gap: 5px;
@@ -109,6 +110,17 @@
     }
     .field-input { height: 38px; padding: 0 10px; }
     .field-input:focus, .xml-editor:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgb(27 109 226 / 13%); }
+    .login-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .save-login-form { display: grid; gap: 10px; margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: #fbfcfe; }
+    .save-login-form[hidden] { display: none; }
+    .save-login-form .login-actions { margin-top: 0; }
+    .login-status { min-height: 18px; margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+    .saved-logins { display: grid; gap: 10px; margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: #fbfcfe; }
+    .saved-logins[hidden] { display: none; }
+    .saved-login-list { display: grid; gap: 6px; max-height: 240px; overflow: auto; }
+    .saved-login-list:empty::after { color: var(--muted); content: "No saved logins match your search."; font-size: 12px; }
+    .saved-login-item { display: flex; align-items: center; gap: 8px; }
+    .saved-login-use { flex: 1; min-width: 0; text-align: left; overflow-wrap: anywhere; }
     .privacy-hint { margin: 12px 0 0; color: #64748b; font-size: 11px; }
     .toolbar {
       display: grid;
@@ -198,11 +210,13 @@
     }
     .operation summary::-webkit-details-marker { display: none; }
     .operation summary::after {
-      margin-left: auto;
+      flex: 0 0 12px;
+      margin-left: 12px;
       color: #7a8ba2;
       content: "+";
       font-size: 20px;
       line-height: 1;
+      text-align: center;
     }
     .operation[open] summary::after { content: "−"; }
     .operation summary:hover { background: #f9fbfd; }
@@ -238,6 +252,20 @@
       font-size: 10px;
       white-space: nowrap;
     }
+    .version-select {
+      flex: 0 0 78px;
+      width: 78px;
+      min-height: 28px;
+      margin-left: auto;
+      padding: 2px 24px 2px 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      background: white;
+      color: #52647d;
+      cursor: pointer;
+      font: 650 11px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    .version-select:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px rgb(27 109 226 / 13%); }
     .op-body { padding: 0 15px 16px 82px; color: var(--muted); }
     .op-body p { margin: 0 0 11px; }
     .request-label {
@@ -394,6 +422,7 @@
       .verb { flex-basis: 50px; }
       .op-name { font-size: 12px; }
       .version { display: none; }
+      .version-select { margin-left: auto; }
       .op-body { padding-left: 66px; }
     }
     @media (max-width: 380px) { .login-fields { grid-template-columns: 1fr; } }

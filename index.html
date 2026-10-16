@@ -20,7 +20,7 @@
     <section class="intro" aria-labelledby="page-title">
       <p class="eyebrow">API reference · IWS_ASMX</p>
       <h1 id="page-title">TxTango API Reference</h1>
-      <p class="subtitle">Browse the supplied TxTango IWS operations. Enter shared login details once, then send SOAP requests and inspect the responses.</p>
+      <p class="subtitle">Browse the supplied TxTango IWS operations. Versioned calls are grouped together with a version selector. Enter shared login details once, then send SOAP requests and inspect the responses.</p>
       <div class="notice"><strong>Request note:</strong> Switch each operation between XML and Fields editing. Fields are generated from the current XML, include suggestions for common values, and can be omitted individually. SOAP requests are sent through the configured Cloudflare Worker proxy.</div>
     </section>
 
@@ -62,7 +62,30 @@
           <input class="field-input" id="login-language" name="language" placeholder="e.g. FR">
         </label>
       </div>
-      <p class="privacy-hint">This page does not write credentials to storage; values remain in the fields until you close or reload it. Browser password managers may still offer their own autofill.</p>
+      <div class="login-actions" aria-label="Saved login actions">
+        <button class="tool-button" id="save-login" type="button" aria-expanded="false" aria-controls="save-login-form">Save login</button>
+        <button class="tool-button" id="toggle-saved-logins" type="button" aria-expanded="false" aria-controls="saved-logins">Use login</button>
+        <button class="tool-button" id="export-logins" type="button">Export logins</button>
+        <button class="tool-button" id="import-logins" type="button">Import logins</button>
+        <input id="import-logins-file" type="file" accept=".json,application/json" hidden>
+      </div>
+      <form class="save-login-form" id="save-login-form" hidden>
+        <label class="field-label" for="save-login-name">Name for this login
+          <input class="field-input" id="save-login-name" type="text" maxlength="80" autocomplete="off" required>
+        </label>
+        <div class="login-actions">
+          <button class="send-button" type="submit">Save</button>
+          <button class="tool-button" id="cancel-save-login" type="button">Cancel</button>
+        </div>
+      </form>
+      <section class="saved-logins" id="saved-logins" aria-label="Saved logins" hidden>
+        <label class="field-label" for="saved-login-search">Search saved logins
+          <input class="field-input" id="saved-login-search" type="search" autocomplete="off" placeholder="Filter by login name">
+        </label>
+        <div class="saved-login-list" id="saved-login-list" role="list"></div>
+      </section>
+      <p class="login-status" id="login-status" role="status" aria-live="polite"></p>
+      <p class="privacy-hint">Saved logins, including passwords, are stored in this browser’s local storage and are not encrypted by this page. Anyone with access to this browser profile can access them. Exported JSON files also contain passwords; keep them secure and delete them when no longer needed.</p>
     </section>
 
     <section aria-label="API operations">

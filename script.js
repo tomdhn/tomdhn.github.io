@@ -470,6 +470,28 @@ Update_ViaRoute
       const match = name.match(/_V(\d+)$/);
       return match ? `V${match[1]}` : "";
     };
+    const operationFamilies = (() => {
+      const families = new Map();
+      operationNames.forEach((name) => {
+        const versionedName = name.match(/_V(\d+)$/);
+        const baseName = versionedName ? name.slice(0, versionedName.index) : name;
+        if (!families.has(baseName)) families.set(baseName, []);
+        families.get(baseName).push(name);
+      });
+      return Array.from(families, ([baseName, names]) => {
+        const orderedNames = names.slice().sort((left, right) => {
+          const leftVersion = left === baseName ? 1 : Number(versionFor(left).slice(1));
+          const rightVersion = right === baseName ? 1 : Number(versionFor(right).slice(1));
+          return leftVersion - rightVersion;
+        });
+        return {
+          baseName,
+          names: orderedNames,
+          isVersionFamily: orderedNames.length > 1,
+          defaultName: orderedNames.includes(baseName) ? baseName : orderedNames[0]
+        };
+      });
+    })();
     const linkFor = (name) => `https://txtangob.tx-connect.com/IWS_ASMX/service.asmx?op=${encodeURIComponent(name)}`;
     const container = document.getElementById("operations");
     const search = document.getElementById("search");
@@ -484,36 +506,55 @@ Update_ViaRoute
         heading.append(document.createTextNode(group));
         const count = document.createElement("span");
         count.className = "group-count";
-        count.textContent = String(operationNames.filter((name) => groupFor(name) === group).length);
+        count.textContent = String(operationFamilies.filter((family) => groupFor(family.baseName) === group).length);
         heading.append(count);
         section.append(heading);
 
-        for (const name of operationNames.filter((operationName) => groupFor(operationName) === group)) {
+        for (const family of operationFamilies.filter((item) => groupFor(item.baseName) === group)) {
+          let currentName = family.defaultName;
+          const versionXml = new Map();
           const details = document.createElement("details");
           details.className = "operation";
           details.dataset.group = group;
-          details.dataset.name = name;
+          details.dataset.name = family.names.join(" ").toLowerCase();
+          details.dataset.operationCount = String(family.names.length);
           const summary = document.createElement("summary");
           const badge = document.createElement("span");
           badge.className = "verb";
           badge.textContent = "SOAP";
           const label = document.createElement("span");
           label.className = "op-name";
-          label.textContent = name;
+          label.textContent = family.isVersionFamily ? family.baseName : currentName;
           summary.append(badge, label);
-          const version = versionFor(name);
-          if (version) {
-            const versionBadge = document.createElement("span");
-            versionBadge.className = "version";
-            versionBadge.textContent = version;
-            summary.append(versionBadge);
+          let versionSelect = null;
+          if (family.isVersionFamily) {
+            versionSelect = document.createElement("select");
+            versionSelect.className = "version-select";
+            versionSelect.setAttribute("aria-label", `Select ${family.baseName} version`);
+            family.names.forEach((operationName) => {
+              const option = document.createElement("option");
+              option.value = operationName;
+              option.textContent = operationName === family.baseName ? "V1" : versionFor(operationName);
+              versionSelect.append(option);
+            });
+            versionSelect.value = currentName;
+            versionSelect.addEventListener("click", (event) => event.stopPropagation());
+            summary.append(versionSelect);
+          } else {
+            const version = versionFor(currentName);
+            if (version) {
+              const versionBadge = document.createElement("span");
+              versionBadge.className = "version";
+              versionBadge.textContent = version;
+              summary.append(versionBadge);
+            }
           }
 
           const body = document.createElement("div");
           body.className = "op-body";
           const description = document.createElement("p");
-          description.textContent = suppliedDescriptions[name] || "Open the service documentation for this operation's details.";
-          const argsId = `args-${name}`;
+          description.textContent = suppliedDescriptions[currentName] || "Open the service documentation for this operation's details.";
+          const argsId = `args-${family.baseName}`;
           const requestLabel = document.createElement("label");
           requestLabel.className = "request-label";
           requestLabel.htmlFor = argsId;
@@ -521,7 +562,7 @@ Update_ViaRoute
           const editorSwitch = document.createElement("div");
           editorSwitch.className = "editor-switch";
           editorSwitch.setAttribute("role", "group");
-          editorSwitch.setAttribute("aria-label", `${name} argument editor mode`);
+          editorSwitch.setAttribute("aria-label", `${family.baseName} argument editor mode`);
           const xmlMode = document.createElement("button");
           xmlMode.className = "editor-mode";
           xmlMode.type = "button";
@@ -537,13 +578,13 @@ Update_ViaRoute
           editor.className = "xml-editor";
           editor.id = argsId;
           editor.spellcheck = false;
-          editor.setAttribute("aria-label", `${name} operation arguments as XML`);
+          editor.setAttribute("aria-label", `${currentName} operation arguments as XML`);
           editor.placeholder = "Add this operation's XML argument elements here.";
-          editor.value = argumentTemplates[name] || "";
+          editor.value = argumentTemplates[currentName] || "";
           const fieldEditor = document.createElement("div");
           fieldEditor.className = "field-editor";
           fieldEditor.hidden = true;
-          fieldEditor.setAttribute("aria-label", `${name} operation arguments as fields`);
+          fieldEditor.setAttribute("aria-label", `${currentName} operation arguments as fields`);
           const fieldHint = document.createElement("p");
           fieldHint.className = "field-hint";
           fieldHint.textContent = "Fields reflect the current XML. Check Omit to leave an element out of the request body.";
@@ -557,13 +598,30 @@ Update_ViaRoute
           fieldContainer.className = "field-editor-content";
           fieldEditor.append(fieldHint, omitAllLabel, fieldContainer);
           let fieldModel = null;
+          let fieldsDirty = false;
+          function renderArgumentFields() {
+            fieldModel = createFieldEditor(editor.value, fieldContainer, currentName);
+            omitAll.checked = false;
+            omitAll.indeterminate = false;
+            omitAllLabel.hidden = fieldModel.fields.length === 0;
+            fieldModel.fields.forEach(({ omit }) => omit.addEventListener("change", () => {
+              fieldsDirty = true;
+              const omittedCount = fieldModel.fields.filter((field) => field.omit.checked).length;
+              omitAll.checked = omittedCount === fieldModel.fields.length;
+              omitAll.indeterminate = omittedCount > 0 && omittedCount < fieldModel.fields.length;
+            }));
+            fieldModel.fields.forEach(({ input }) => input.addEventListener("input", () => { fieldsDirty = true; }));
+            fieldsDirty = false;
+          }
           omitAll.addEventListener("change", () => {
+            fieldsDirty = true;
             fieldModel?.fields.forEach(({ omit }) => { omit.checked = omitAll.checked; });
             omitAll.indeterminate = false;
           });
           xmlMode.addEventListener("click", () => {
             if (fieldEditor.hidden) return;
-            editor.value = serializeFieldModel(fieldModel);
+            if (fieldsDirty) editor.value = serializeFieldModel(fieldModel);
+            fieldsDirty = false;
             editor.hidden = false;
             fieldEditor.hidden = true;
             xmlMode.setAttribute("aria-pressed", "true");
@@ -572,15 +630,7 @@ Update_ViaRoute
           fieldsMode.addEventListener("click", () => {
             if (!fieldEditor.hidden) return;
             try {
-              fieldModel = createFieldEditor(editor.value, fieldContainer, name);
-              omitAll.checked = false;
-              omitAll.indeterminate = false;
-              omitAllLabel.hidden = fieldModel.fields.length === 0;
-              fieldModel.fields.forEach(({ omit }) => omit.addEventListener("change", () => {
-                const omittedCount = fieldModel.fields.filter((field) => field.omit.checked).length;
-                omitAll.checked = omittedCount === fieldModel.fields.length;
-                omitAll.indeterminate = omittedCount > 0 && omittedCount < fieldModel.fields.length;
-              }));
+              renderArgumentFields();
               editor.hidden = true;
               fieldEditor.hidden = false;
               xmlMode.setAttribute("aria-pressed", "false");
@@ -590,8 +640,45 @@ Update_ViaRoute
               status.textContent = error.message;
             }
           });
+          if (versionSelect) {
+            versionSelect.addEventListener("change", () => {
+              if (!fieldEditor.hidden) versionXml.set(currentName, serializeFieldModel(fieldModel));
+              else versionXml.set(currentName, editor.value);
+              currentName = versionSelect.value;
+              editor.value = versionXml.has(currentName) ? versionXml.get(currentName) : argumentTemplates[currentName] || "";
+              editor.setAttribute("aria-label", `${currentName} operation arguments as XML`);
+              fieldEditor.setAttribute("aria-label", `${currentName} operation arguments as fields`);
+              reset.setAttribute("aria-label", `Reset ${currentName} arguments to default`);
+              description.textContent = suppliedDescriptions[currentName] || "Open the service documentation for this operation's details.";
+              link.href = linkFor(currentName);
+              link.textContent = `Open ${currentName} documentation ↗`;
+              response.hidden = true;
+              responseStatus.textContent = "";
+              responseContent.textContent = "";
+              responseContent.dataset.raw = "";
+              status.textContent = "";
+              if (!fieldEditor.hidden) renderArgumentFields();
+            });
+          }
           const actions = document.createElement("div");
           actions.className = "request-actions";
+          const reset = document.createElement("button");
+          reset.className = "tool-button";
+          reset.type = "button";
+          reset.textContent = "Reset";
+          reset.setAttribute("aria-label", `Reset ${currentName} arguments to default`);
+          reset.addEventListener("click", () => {
+            editor.value = argumentTemplates[currentName] || "";
+            versionXml.set(currentName, editor.value);
+            status.textContent = "";
+            if (!fieldEditor.hidden) {
+              try {
+                renderArgumentFields();
+              } catch (error) {
+                status.textContent = error.message;
+              }
+            }
+          });
           const send = document.createElement("button");
           send.className = "send-button";
           send.type = "button";
@@ -599,7 +686,7 @@ Update_ViaRoute
           const status = document.createElement("span");
           status.className = "request-status";
           status.setAttribute("role", "status");
-          actions.append(send, status);
+          actions.append(send, reset, status);
           const response = document.createElement("section");
           response.className = "response-box";
           response.hidden = true;
@@ -610,36 +697,48 @@ Update_ViaRoute
           responseLabel.textContent = "Response";
           responseStatus.className = "response-status";
           responseHeading.append(responseLabel, responseStatus);
+          const clearResponse = document.createElement("button");
+          clearResponse.className = "export-button";
+          clearResponse.type = "button";
+          clearResponse.textContent = "Clear";
+          clearResponse.setAttribute("aria-label", `Clear ${family.baseName} response`);
+          clearResponse.addEventListener("click", () => {
+            response.hidden = true;
+            responseStatus.textContent = "";
+            responseContent.textContent = "";
+            responseContent.dataset.raw = "";
+            status.textContent = "";
+          });
           const exportXml = document.createElement("button");
           exportXml.className = "export-button";
           exportXml.type = "button";
           exportXml.textContent = "Export as XML";
-          exportXml.addEventListener("click", () => downloadFile(`${name}-response.xml`, responseContent.textContent, "application/xml;charset=utf-8"));
+          exportXml.addEventListener("click", () => downloadFile(`${currentName}-response.xml`, responseContent.textContent, "application/xml;charset=utf-8"));
           const exportCsv = document.createElement("button");
           exportCsv.className = "export-button";
           exportCsv.type = "button";
           exportCsv.textContent = "Export as CSV";
           exportCsv.addEventListener("click", () => {
             try {
-              downloadFile(`${name}-response.csv`, xmlToCsv(responseContent.dataset.raw || ""), "text/csv;charset=utf-8");
+              downloadFile(`${currentName}-response.csv`, xmlToCsv(responseContent.dataset.raw || ""), "text/csv;charset=utf-8");
             } catch (error) {
               status.textContent = `CSV export failed: ${error.message}`;
             }
           });
-          responseHeading.append(exportXml, exportCsv);
+          responseHeading.append(clearResponse, exportXml, exportCsv);
           const responseContent = document.createElement("pre");
           responseContent.className = "response-content";
           response.append(responseHeading, responseContent);
           send.addEventListener("click", () => {
             const argumentsXml = fieldEditor.hidden ? editor.value : serializeFieldModel(fieldModel);
-            sendRequest(name, argumentsXml, send, status, response, responseStatus, responseContent);
+            sendRequest(currentName, argumentsXml, send, status, response, responseStatus, responseContent);
           });
           const link = document.createElement("a");
           link.className = "op-link";
-          link.href = linkFor(name);
+          link.href = linkFor(currentName);
           link.target = "_blank";
           link.rel = "noopener noreferrer";
-          link.textContent = "Open official operation documentation ↗";
+          link.textContent = `Open ${currentName} documentation ↗`;
           body.append(description, requestLabel, editorSwitch, editor, fieldEditor, actions, response, link);
           details.append(summary, body);
           section.append(details);
@@ -656,11 +755,13 @@ Update_ViaRoute
         section.querySelectorAll(".operation").forEach((operation) => {
           const matches = operation.dataset.name.toLowerCase().includes(query);
           operation.hidden = !matches;
-          if (matches) visibleInGroup++;
+          if (matches) {
+            visibleInGroup++;
+            visible += Number(operation.dataset.operationCount);
+          }
         });
         section.hidden = visibleInGroup === 0;
         section.querySelector(".group-count").textContent = String(visibleInGroup);
-        visible += visibleInGroup;
       });
       document.getElementById("stats").innerHTML = `<strong>${visible}</strong> of <strong>${operationNames.length}</strong> operations`;
       document.getElementById("empty").style.display = visible ? "none" : "block";
@@ -673,18 +774,7 @@ Update_ViaRoute
     }
 
     function readLogin() {
-      const values = {
-        DateTime: document.getElementById("login-datetime").value,
-        Version: document.getElementById("login-version").value,
-        Dispatcher: document.getElementById("login-dispatcher").value,
-        Password: document.getElementById("login-password").value,
-        SystemNr: document.getElementById("login-system-number").value,
-        ApplicationName: document.getElementById("login-application-name").value,
-        ApplicationVersion: document.getElementById("login-application-version").value,
-        PcName: document.getElementById("login-pc-name").value,
-        Integrator: document.getElementById("login-integrator").value,
-        Language: document.getElementById("login-language").value
-      };
+      const values = readLoginFields();
       const missing = Object.entries(values).filter(([, value]) => !value.trim()).map(([name]) => name);
       // ignore missing fields for datetime, version, application name, applicatoin version, pc name and language, as these are optional
       const optionalFields = ["DateTime", "Version", "ApplicationName", "ApplicationVersion", "PcName", "Language"];
@@ -692,6 +782,204 @@ Update_ViaRoute
       if (requiredMissing.length) throw new Error(`Missing required login fields: ${requiredMissing.join(", ")}`);
       return values;
     }
+
+    const loginStorageKey = "txtango-saved-logins";
+    const loginFieldIds = {
+      DateTime: "login-datetime",
+      Version: "login-version",
+      Dispatcher: "login-dispatcher",
+      Password: "login-password",
+      SystemNr: "login-system-number",
+      ApplicationName: "login-application-name",
+      ApplicationVersion: "login-application-version",
+      PcName: "login-pc-name",
+      Integrator: "login-integrator",
+      Language: "login-language"
+    };
+    const loginStatus = document.getElementById("login-status");
+    const savedLoginPanel = document.getElementById("saved-logins");
+    const savedLoginList = document.getElementById("saved-login-list");
+    const savedLoginSearch = document.getElementById("saved-login-search");
+    const saveLoginForm = document.getElementById("save-login-form");
+    const saveLoginName = document.getElementById("save-login-name");
+    let savedLogins = [];
+    let loginStorageAvailable = true;
+
+    function validateLoginProfiles(value) {
+      if (!Array.isArray(value)) throw new Error("The file must contain a list of saved logins.");
+      const names = new Set();
+      return value.map((profile) => {
+        if (!profile || typeof profile.name !== "string" || !profile.name.trim() ||
+            !profile.values || typeof profile.values !== "object" || Array.isArray(profile.values)) {
+          throw new Error("Each saved login must have a name and a values object.");
+        }
+        const name = profile.name.trim();
+        const normalizedName = name.toLocaleLowerCase();
+        if (names.has(normalizedName)) throw new Error(`The file contains duplicate login names: ${name}.`);
+        names.add(normalizedName);
+        const values = {};
+        Object.keys(loginFieldIds).forEach((field) => {
+          if (typeof profile.values[field] !== "string") {
+            throw new Error(`The saved login "${name}" has an invalid ${field} value.`);
+          }
+          values[field] = profile.values[field];
+        });
+        return { name, values };
+      });
+    }
+
+    function storeLoginProfiles(profiles) {
+      if (!loginStorageAvailable) throw new Error("Browser storage is unavailable. Check browser privacy settings or use another browser profile.");
+      const validated = validateLoginProfiles(profiles);
+      try {
+        localStorage.setItem(loginStorageKey, JSON.stringify(validated));
+      } catch (error) {
+        if (error instanceof DOMException && (error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED")) {
+          throw new Error("There is not enough browser storage to save these logins.");
+        }
+        throw new Error(`Could not save logins to browser storage: ${error.message}`);
+      }
+      savedLogins = validated;
+      renderSavedLogins();
+    }
+
+    function renderSavedLogins() {
+      const query = savedLoginSearch.value.trim().toLocaleLowerCase();
+      savedLoginList.replaceChildren();
+      savedLogins
+        .filter((profile) => profile.name.toLocaleLowerCase().includes(query))
+        .forEach((profile) => {
+          const row = document.createElement("div");
+          row.className = "saved-login-item";
+          row.setAttribute("role", "listitem");
+          const useButton = document.createElement("button");
+          useButton.className = "tool-button saved-login-use";
+          useButton.type = "button";
+          useButton.textContent = profile.name;
+          useButton.setAttribute("aria-label", `Use saved login ${profile.name}`);
+          useButton.addEventListener("click", () => {
+            Object.entries(loginFieldIds).forEach(([field, id]) => {
+              document.getElementById(id).value = profile.values[field];
+            });
+            savedLoginPanel.hidden = true;
+            document.getElementById("toggle-saved-logins").setAttribute("aria-expanded", "false");
+            loginStatus.textContent = `Loaded login "${profile.name}".`;
+          });
+          row.append(useButton);
+          savedLoginList.append(row);
+        });
+    }
+
+    function initializeLoginProfiles() {
+      try {
+        const stored = localStorage.getItem(loginStorageKey);
+        if (stored) savedLogins = validateLoginProfiles(JSON.parse(stored));
+      } catch (error) {
+        loginStorageAvailable = false;
+        loginStatus.textContent = `Could not load saved logins: ${error.message}`;
+      }
+      renderSavedLogins();
+    }
+
+    document.getElementById("save-login").addEventListener("click", (event) => {
+      saveLoginForm.hidden = false;
+      event.currentTarget.setAttribute("aria-expanded", "true");
+      loginStatus.textContent = "";
+      saveLoginName.focus();
+    });
+    document.getElementById("cancel-save-login").addEventListener("click", () => {
+      saveLoginForm.reset();
+      saveLoginForm.hidden = true;
+      document.getElementById("save-login").setAttribute("aria-expanded", "false");
+    });
+    saveLoginForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const profileName = saveLoginName.value.trim();
+      if (!profileName) {
+        loginStatus.textContent = "Enter a non-empty name to save this login.";
+        saveLoginName.focus();
+        return;
+      }
+      const duplicate = savedLogins.find((profile) => profile.name.toLocaleLowerCase() === profileName.toLocaleLowerCase());
+      const profile = { name: profileName, values: readLoginFields() };
+      const updated = savedLogins.filter((item) => item.name.toLocaleLowerCase() !== profileName.toLocaleLowerCase());
+      updated.push(profile);
+      try {
+        storeLoginProfiles(updated);
+        loginStatus.textContent = duplicate
+          ? `Updated saved login "${duplicate.name}".`
+          : `Saved login "${profileName}".`;
+        saveLoginForm.reset();
+        saveLoginForm.hidden = true;
+        document.getElementById("save-login").setAttribute("aria-expanded", "false");
+      } catch (error) {
+        loginStatus.textContent = error.message;
+      }
+    });
+
+    function readLoginFields() {
+      return Object.fromEntries(Object.entries(loginFieldIds).map(([field, id]) => [
+        field,
+        document.getElementById(id).value
+      ]));
+    }
+
+    document.getElementById("toggle-saved-logins").addEventListener("click", (event) => {
+      const button = event.currentTarget;
+      savedLoginPanel.hidden = !savedLoginPanel.hidden;
+      button.setAttribute("aria-expanded", String(!savedLoginPanel.hidden));
+      loginStatus.textContent = "";
+      if (!savedLoginPanel.hidden) {
+        renderSavedLogins();
+        savedLoginSearch.focus();
+      }
+    });
+    savedLoginSearch.addEventListener("input", renderSavedLogins);
+
+    document.getElementById("export-logins").addEventListener("click", () => {
+      try {
+        const content = JSON.stringify({ format: "txtango-login-profiles", version: 1, logins: savedLogins }, null, 2);
+        const blob = new Blob([content], { type: "application/json;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "txtango-logins.json";
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        loginStatus.textContent = `Exported ${savedLogins.length} saved login${savedLogins.length === 1 ? "" : "s"}. Keep the file secure; it contains passwords.`;
+      } catch (error) {
+        loginStatus.textContent = `Could not export logins: ${error.message}`;
+      }
+    });
+
+    const importLoginFile = document.getElementById("import-logins-file");
+    document.getElementById("import-logins").addEventListener("click", () => importLoginFile.click());
+    importLoginFile.addEventListener("change", async () => {
+      const file = importLoginFile.files[0];
+      if (!file) return;
+      try {
+        const text = (await file.text()).replace(/^\uFEFF/, "");
+        const imported = JSON.parse(text);
+        if (!imported || imported.format !== "txtango-login-profiles" || imported.version !== 1) {
+          throw new Error("This file is not a supported TxTango login export.");
+        }
+        const profiles = validateLoginProfiles(imported.logins);
+        const conflicts = profiles.filter((profile) =>
+          savedLogins.some((existing) => existing.name.toLocaleLowerCase() === profile.name.toLocaleLowerCase())
+        );
+        const merged = savedLogins.filter((existing) =>
+          !profiles.some((profile) => profile.name.toLocaleLowerCase() === existing.name.toLocaleLowerCase())
+        ).concat(profiles);
+        storeLoginProfiles(merged);
+        loginStatus.textContent = `Imported ${profiles.length} saved login${profiles.length === 1 ? "" : "s"}${conflicts.length ? `, replacing ${conflicts.length} existing` : ""}.`;
+      } catch (error) {
+        loginStatus.textContent = `Could not import logins: ${error.message}`;
+      } finally {
+        importLoginFile.value = "";
+      }
+    });
 
     function suggestionsFor(fieldName) {
       const name = fieldName.toLowerCase();
@@ -1009,6 +1297,7 @@ Update_ViaRoute
 
     renderOperations();
     filterOperations();
+    initializeLoginProfiles();
     search.addEventListener("input", filterOperations);
     document.getElementById("expand-all").addEventListener("click", () => {
       container.querySelectorAll(".operation").forEach((item) => { item.open = true; });
