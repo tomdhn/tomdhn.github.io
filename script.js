@@ -390,7 +390,7 @@ Update_ViaRoute
       Update_Dispatcher_V3: "Update dispatcher including user rights and user profiles.",
       Update_User: "Update user."
     };
-    const argumentTemplates = {
+    const customArgumentTemplates = {
       Get_Users: `      <UserSelection>
         <IncludeInactive>true</IncludeInactive>
         <Identifiers>
@@ -456,6 +456,7 @@ Update_ViaRoute
         </Persons>
       </DriverSelection>`
     };
+    const argumentTemplates = Object.assign({}, window.txTangoArgumentTemplates || {}, customArgumentTemplates);
 
     const groupFor = (name) => {
       if (name.startsWith("Get_")) return "Read";
@@ -567,12 +568,12 @@ Update_ViaRoute
           xmlMode.className = "editor-mode";
           xmlMode.type = "button";
           xmlMode.textContent = "XML";
-          xmlMode.setAttribute("aria-pressed", "true");
+          xmlMode.setAttribute("aria-pressed", "false");
           const fieldsMode = document.createElement("button");
           fieldsMode.className = "editor-mode";
           fieldsMode.type = "button";
           fieldsMode.textContent = "Fields";
-          fieldsMode.setAttribute("aria-pressed", "false");
+          fieldsMode.setAttribute("aria-pressed", "true");
           editorSwitch.append(xmlMode, fieldsMode);
           const editor = document.createElement("textarea");
           editor.className = "xml-editor";
@@ -583,7 +584,7 @@ Update_ViaRoute
           editor.value = argumentTemplates[currentName] || "";
           const fieldEditor = document.createElement("div");
           fieldEditor.className = "field-editor";
-          fieldEditor.hidden = true;
+          fieldEditor.hidden = false;
           fieldEditor.setAttribute("aria-label", `${currentName} operation arguments as fields`);
           const fieldHint = document.createElement("p");
           fieldHint.className = "field-hint";
@@ -613,6 +614,8 @@ Update_ViaRoute
             fieldModel.fields.forEach(({ input }) => input.addEventListener("input", () => { fieldsDirty = true; }));
             fieldsDirty = false;
           }
+          renderArgumentFields();
+          editor.hidden = true;
           omitAll.addEventListener("change", () => {
             fieldsDirty = true;
             fieldModel?.fields.forEach(({ omit }) => { omit.checked = omitAll.checked; });
@@ -642,7 +645,7 @@ Update_ViaRoute
           });
           if (versionSelect) {
             versionSelect.addEventListener("change", () => {
-              if (!fieldEditor.hidden) versionXml.set(currentName, serializeFieldModel(fieldModel));
+            if (!fieldEditor.hidden) versionXml.set(currentName, fieldsDirty ? serializeFieldModel(fieldModel) : editor.value);
               else versionXml.set(currentName, editor.value);
               currentName = versionSelect.value;
               editor.value = versionXml.has(currentName) ? versionXml.get(currentName) : argumentTemplates[currentName] || "";

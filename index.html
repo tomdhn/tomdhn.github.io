@@ -21,7 +21,7 @@
       <p class="eyebrow">API reference · IWS_ASMX</p>
       <h1 id="page-title">TxTango API Reference</h1>
       <p class="subtitle">Browse the supplied TxTango IWS operations. Versioned calls are grouped together with a version selector. Enter shared login details once, then send SOAP requests and inspect the responses.</p>
-      <div class="notice"><strong>Request note:</strong> Switch each operation between XML and Fields editing. Fields are generated from the current XML, include suggestions for common values, and can be omitted individually. SOAP requests are sent through the configured Cloudflare Worker proxy.</div>
+      <div class="notice"><strong>Request note:</strong> Operation XML templates are prefilled from the TxTango WSDL where available. Repeated elements are shown once, and XML choice groups start with one option; check each operation’s documentation for its exact requirements. Switch between XML and Fields editing, and omit optional fields as needed. Requests use the configured Cloudflare Worker proxy.</div>
     </section>
 
     <section class="login-panel" aria-labelledby="login-heading">
@@ -104,6 +104,7 @@
     <footer>TxTango IWS · Static reference generated from the supplied operation list</footer>
   </main>
 
+  <script src="argument-templates.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
