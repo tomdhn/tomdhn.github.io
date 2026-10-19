@@ -104,6 +104,48 @@
     <footer>TxTango IWS · Static reference generated from the supplied operation list</footer>
   </main>
 
+  <dialog class="planning-builder-dialog" id="planning-builder-dialog" aria-labelledby="planning-builder-title">
+    <div class="planning-builder">
+      <header class="planning-builder-header">
+        <div>
+          <p class="eyebrow">Insert_Planning</p>
+          <h2 id="planning-builder-title">Planning builder</h2>
+          <p class="planning-builder-hint">Drag an element from the palette into a matching parent. Select a parent, then use Add for keyboard-friendly editing.</p>
+        </div>
+        <button class="tool-button planning-builder-close" id="planning-builder-close" type="button" aria-label="Close planning builder">Close</button>
+      </header>
+      <div class="planning-builder-layout">
+        <section class="planning-workspace" aria-label="Planning structure">
+          <div class="planning-workspace-heading">
+            <h3>Planning structure</h3>
+            <div class="planning-workspace-actions">
+              <span id="planning-drop-target" aria-live="polite"></span>
+              <button class="tool-button planning-clear-all" id="planning-clear-all" type="button">Clear all</button>
+            </div>
+          </div>
+          <div class="planning-canvas" id="planning-canvas"></div>
+          <p class="planning-builder-status" id="planning-builder-status" role="status" aria-live="polite"></p>
+        </section>
+        <aside class="planning-palette" aria-label="Available planning elements">
+          <h3>Elements</h3>
+          <label class="field-label" for="planning-palette-search">Search elements
+            <input class="field-input" id="planning-palette-search" type="search" autocomplete="off" placeholder="Filter elements">
+          </label>
+          <label class="planning-available-filter" for="planning-show-available">
+            <input id="planning-show-available" type="checkbox" checked>
+            <span>Show only available</span>
+          </label>
+          <p class="planning-palette-hint">The list follows the Insert_Planning WSDL structure. Repeated elements can be added more than once.</p>
+          <div class="planning-palette-list" id="planning-palette-list"></div>
+        </aside>
+      </div>
+      <footer class="planning-builder-footer">
+        <button class="tool-button" id="planning-builder-cancel" type="button">Cancel</button>
+        <button class="send-button" id="planning-builder-apply" type="button">Apply to request</button>
+      </footer>
+    </div>
+  </dialog>
+
   <script src="argument-templates.js"></script>
   <script src="script.js"></script>
 </body>

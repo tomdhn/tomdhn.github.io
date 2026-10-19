@@ -496,6 +496,386 @@ Update_ViaRoute
     const linkFor = (name) => `https://txtangob.tx-connect.com/IWS_ASMX/service.asmx?op=${encodeURIComponent(name)}`;
     const container = document.getElementById("operations");
     const search = document.getElementById("search");
+    const planningBuilderDialog = document.getElementById("planning-builder-dialog");
+    const planningCanvas = document.getElementById("planning-canvas");
+    const planningPaletteSearch = document.getElementById("planning-palette-search");
+    const planningPaletteList = document.getElementById("planning-palette-list");
+    const planningShowAvailable = document.getElementById("planning-show-available");
+    const planningBuilderStatus = document.getElementById("planning-builder-status");
+    const planningDropTarget = document.getElementById("planning-drop-target");
+    let activePlanningBuilder = null;
+
+    function setPlanningElementColor(element, name) {
+      const hue = Array.from(name).reduce(
+        (value, character) => (value * 31 + character.charCodeAt(0)) % 360,
+        0
+      );
+      element.style.setProperty("--planning-hue", String(hue));
+    }
+
+    function openPlanningBuilder(xml, onApply) {
+      try {
+        validateArguments(xml);
+        const parsed = new DOMParser().parseFromString(
+          `<argument-fragment xmlns="${xmlNamespace}">${xml}</argument-fragment>`,
+          "application/xml"
+        );
+        const roots = Array.from(parsed.documentElement.children);
+        if (roots.length !== 1 || roots[0].localName !== "PlanningInsert") {
+          throw new Error("The builder requires one <PlanningInsert> root element.");
+        }
+
+        const templateDocument = new DOMParser().parseFromString(
+          `<argument-fragment xmlns="${xmlNamespace}">${argumentTemplates.Insert_Planning || ""}</argument-fragment>`,
+          "application/xml"
+        );
+        const templateRoot = Array.from(templateDocument.documentElement.children)
+          .find((element) => element.localName === "PlanningInsert");
+        const schemaCandidates = new Map();
+        let nextCandidateId = 0;
+
+        function collectCandidates(parent, path) {
+          Array.from(parent.children).forEach((child) => {
+            const elementPath = [...path, child.localName];
+            const key = elementPath.join("/");
+            if (!schemaCandidates.has(key)) {
+              schemaCandidates.set(key, {
+                id: `planning-element-${nextCandidateId++}`,
+                name: child.localName,
+                parentPath: path.join("/"),
+                elementPath: key,
+                prototype: child.cloneNode(true)
+              });
+            }
+            collectCandidates(child, elementPath);
+          });
+        }
+
+        if (templateRoot) collectCandidates(templateRoot, [templateRoot.localName]);
+        collectCandidates(roots[0], [roots[0].localName]);
+        const candidates = Array.from(schemaCandidates.values());
+        const candidateById = new Map(candidates.map((candidate) => [candidate.id, candidate]));
+        const nodeIds = new WeakMap();
+        let nextNodeId = 0;
+        let selectedParentId = null;
+
+        function nodeId(element) {
+          if (!nodeIds.has(element)) nodeIds.set(element, `planning-node-${nextNodeId++}`);
+          return nodeIds.get(element);
+        }
+
+        function getSchemaPath(element, parentPath) {
+          return parentPath ? `${parentPath}/${element.localName}` : element.localName;
+        }
+
+        function renderDropzone(parent, parentPath) {
+          const zone = document.createElement("div");
+          zone.className = "planning-dropzone";
+          zone.dataset.parentId = nodeId(parent);
+          zone.dataset.parentPath = parentPath;
+          if (zone.dataset.parentId === selectedParentId) zone.classList.add("is-selected");
+          zone.setAttribute("aria-label", `Drop planning elements inside ${parentPath}`);
+          const children = Array.from(parent.children);
+          if (children.length) {
+            children.forEach((child) => zone.append(renderPlanningNode(child, parentPath)));
+          } else {
+            const hint = document.createElement("div");
+            hint.className = "planning-drop-hint";
+            hint.textContent = "Drop an element here, or select this area and use Add.";
+            zone.append(hint);
+          }
+          return zone;
+        }
+
+        function renderPlanningNode(element, parentPath) {
+          const elementPath = getSchemaPath(element, parentPath);
+          const block = document.createElement("div");
+          block.className = "planning-block";
+          setPlanningElementColor(block, element.localName);
+          const header = document.createElement("div");
+          header.className = "planning-block-header";
+          const grip = document.createElement("span");
+          grip.className = "planning-block-grip";
+          grip.setAttribute("aria-hidden", "true");
+          grip.textContent = "⋮⋮";
+          const name = document.createElement("span");
+          name.className = "planning-block-name";
+          name.textContent = element.localName;
+          header.append(grip, name);
+          const selectParent = document.createElement("button");
+          selectParent.className = "planning-select-parent";
+          selectParent.type = "button";
+          selectParent.textContent = nodeId(element) === selectedParentId ? "Selected" : "Select";
+          selectParent.setAttribute("aria-label", `Select ${element.localName} as the parent for new elements`);
+          selectParent.setAttribute("aria-pressed", String(nodeId(element) === selectedParentId));
+          selectParent.dataset.selectParentId = nodeId(element);
+          header.append(selectParent);
+          const children = Array.from(element.children);
+          if (children.length) {
+            const remove = document.createElement("button");
+            remove.className = "planning-block-remove";
+            remove.type = "button";
+            remove.textContent = "×";
+            remove.setAttribute("aria-label", `Remove ${element.localName} and its children`);
+            remove.dataset.removeId = nodeId(element);
+            header.append(remove);
+          } else {
+            const value = document.createElement("input");
+            value.className = "planning-block-value";
+            value.type = "text";
+            value.value = element.textContent;
+            value.setAttribute("aria-label", `${element.localName} value`);
+            value.dataset.valueId = nodeId(element);
+            header.append(value);
+            const remove = document.createElement("button");
+            remove.className = "planning-block-remove";
+            remove.type = "button";
+            remove.textContent = "×";
+            remove.setAttribute("aria-label", `Remove ${element.localName}`);
+            remove.dataset.removeId = nodeId(element);
+            header.append(remove);
+          }
+          block.append(header);
+          if (children.length || candidates.some((candidate) => candidate.parentPath === elementPath)) {
+            const childContainer = document.createElement("div");
+            childContainer.className = "planning-block-children";
+            childContainer.append(renderDropzone(element, elementPath));
+            block.append(childContainer);
+          }
+          return block;
+        }
+
+        function updateSelectedTarget() {
+          const selected = planningCanvas.querySelector(
+            `.planning-dropzone[data-parent-id="${selectedParentId}"]`
+          );
+          planningCanvas.querySelectorAll(".planning-dropzone").forEach((zone) => {
+            zone.classList.toggle("is-selected", zone === selected);
+          });
+          planningDropTarget.textContent = selected
+            ? `Adding to: ${selected.dataset.parentPath}`
+            : "Select a drop area";
+        }
+
+        function renderCanvas() {
+          const root = roots[0];
+          if (!findNodeById(root, selectedParentId)) selectedParentId = nodeId(root);
+          planningCanvas.replaceChildren();
+          const rootBlock = document.createElement("div");
+          rootBlock.className = "planning-root-block";
+          const rootHeader = document.createElement("div");
+          rootHeader.className = "planning-root-header";
+          const rootName = document.createElement("span");
+          rootName.textContent = `<${root.localName}>`;
+          const selectRoot = document.createElement("button");
+          selectRoot.className = "planning-select-parent";
+          selectRoot.type = "button";
+          selectRoot.textContent = nodeId(root) === selectedParentId ? "Selected" : "Select";
+          selectRoot.setAttribute("aria-label", `Select ${root.localName} as the parent for new elements`);
+          selectRoot.setAttribute("aria-pressed", String(nodeId(root) === selectedParentId));
+          selectRoot.dataset.selectParentId = nodeId(root);
+          rootHeader.append(rootName, selectRoot);
+          rootBlock.append(rootHeader, renderDropzone(root, root.localName));
+          planningCanvas.append(rootBlock);
+          updateSelectedTarget();
+        }
+
+        function renderPalette() {
+          const query = planningPaletteSearch.value.trim().toLocaleLowerCase();
+          const selectedZone = planningCanvas.querySelector(
+            `.planning-dropzone[data-parent-id="${selectedParentId}"]`
+          );
+          const selectedPath = selectedZone ? selectedZone.dataset.parentPath : "";
+          planningPaletteList.replaceChildren();
+          candidates
+            .filter((candidate) => !planningShowAvailable.checked || candidate.parentPath === selectedPath)
+            .filter((candidate) =>
+              `${candidate.name} ${candidate.parentPath} ${candidate.elementPath}`.toLocaleLowerCase().includes(query)
+            )
+            .forEach((candidate) => {
+              const item = document.createElement("div");
+              item.className = "planning-palette-item";
+              setPlanningElementColor(item, candidate.name);
+              item.draggable = true;
+              item.dataset.candidateId = candidate.id;
+              const name = document.createElement("span");
+              name.className = "planning-palette-name";
+              name.textContent = `<${candidate.name}>`;
+              const add = document.createElement("button");
+              add.className = "planning-palette-add";
+              add.type = "button";
+              add.textContent = "Add";
+              add.setAttribute("aria-label", `Add ${candidate.name} inside the selected parent`);
+              add.dataset.addCandidateId = candidate.id;
+              add.disabled = candidate.parentPath !== selectedPath;
+              if (add.disabled) add.title = `Select a parent inside ${candidate.parentPath} to enable Add.`;
+              const path = document.createElement("span");
+              path.className = "planning-palette-path";
+              path.textContent = `Inside ${candidate.parentPath}`;
+              item.append(name, add, path);
+              item.addEventListener("dragstart", (event) => {
+                event.dataTransfer.setData("text/plain", candidate.id);
+                event.dataTransfer.effectAllowed = "copy";
+              });
+              planningPaletteList.append(item);
+            });
+        }
+
+        function addCandidate(candidateId, parentId) {
+          const candidate = candidateById.get(candidateId);
+          const parent = Array.from(planningCanvas.querySelectorAll(".planning-dropzone"))
+            .find((zone) => zone.dataset.parentId === parentId);
+          if (!candidate || !parent) {
+            planningBuilderStatus.textContent = "Select a valid drop area before adding an element.";
+            return;
+          }
+          if (parent.dataset.parentPath !== candidate.parentPath) {
+            planningBuilderStatus.textContent = `<${candidate.name}> can only be added inside ${candidate.parentPath}.`;
+            return;
+          }
+          const parentNode = findNodeById(roots[0], parentId);
+          if (!parentNode) {
+            planningBuilderStatus.textContent = "The selected planning element is no longer available.";
+            return;
+          }
+          selectedParentId = parentId;
+          const element = candidate.prototype.cloneNode(false);
+          parentNode.appendChild(element);
+          planningBuilderStatus.textContent = `Added <${candidate.name}>.`;
+          renderCanvas();
+          renderPalette();
+        }
+
+        function findNodeById(root, id) {
+          if (nodeId(root) === id) return root;
+          for (const child of Array.from(root.children)) {
+            const result = findNodeById(child, id);
+            if (result) return result;
+          }
+          return null;
+        }
+
+        selectedParentId = nodeId(roots[0]);
+        activePlanningBuilder = {
+          root: roots[0],
+          nodeId,
+          renderCanvas,
+          renderPalette,
+          addCandidate,
+          selectParent(parentId) {
+            selectedParentId = parentId;
+          },
+          getSelectedParent() {
+            return selectedParentId;
+          },
+          onApply
+        };
+        planningBuilderStatus.textContent = "";
+        planningPaletteSearch.value = "";
+        planningShowAvailable.checked = true;
+        renderCanvas();
+        renderPalette();
+        planningBuilderDialog.showModal();
+      } catch (error) {
+        throw error;
+      }
+    }
+
+    planningCanvas.addEventListener("click", (event) => {
+      if (!activePlanningBuilder) return;
+      const selectParent = event.target.closest("[data-select-parent-id]");
+      if (selectParent) {
+        activePlanningBuilder.selectParent(selectParent.dataset.selectParentId);
+        activePlanningBuilder.renderCanvas();
+        activePlanningBuilder.renderPalette();
+        planningBuilderStatus.textContent = `Selected ${findPlanningNode(
+          activePlanningBuilder.root,
+          selectParent.dataset.selectParentId,
+          activePlanningBuilder.nodeId
+        ).localName} as the parent.`;
+        return;
+      }
+      const removeButton = event.target.closest("[data-remove-id]");
+      if (removeButton) {
+        const target = findPlanningNode(activePlanningBuilder.root, removeButton.dataset.removeId, activePlanningBuilder.nodeId);
+        if (target && target !== activePlanningBuilder.root) {
+          target.remove();
+          planningBuilderStatus.textContent = `Removed <${target.localName}>.`;
+          activePlanningBuilder.renderCanvas();
+          activePlanningBuilder.renderPalette();
+        }
+        return;
+      }
+      const zone = event.target.closest(".planning-dropzone");
+      if (zone) {
+        activePlanningBuilder.selectParent(zone.dataset.parentId);
+        activePlanningBuilder.renderCanvas();
+        activePlanningBuilder.renderPalette();
+      }
+    });
+    planningCanvas.addEventListener("input", (event) => {
+      if (!activePlanningBuilder || !event.target.matches("[data-value-id]")) return;
+      const node = findPlanningNode(activePlanningBuilder.root, event.target.dataset.valueId, activePlanningBuilder.nodeId);
+      if (node) node.textContent = event.target.value;
+    });
+    planningCanvas.addEventListener("dragover", (event) => {
+      const zone = event.target.closest(".planning-dropzone");
+      if (!zone || !activePlanningBuilder) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      zone.classList.add("is-over");
+    });
+    planningCanvas.addEventListener("dragleave", (event) => {
+      const zone = event.target.closest(".planning-dropzone");
+      if (zone && !zone.contains(event.relatedTarget)) zone.classList.remove("is-over");
+    });
+    planningCanvas.addEventListener("drop", (event) => {
+      const zone = event.target.closest(".planning-dropzone");
+      if (!zone || !activePlanningBuilder) return;
+      event.preventDefault();
+      zone.classList.remove("is-over");
+      activePlanningBuilder.addCandidate(event.dataTransfer.getData("text/plain"), zone.dataset.parentId);
+    });
+    planningPaletteSearch.addEventListener("input", () => activePlanningBuilder?.renderPalette());
+    planningShowAvailable.addEventListener("change", () => activePlanningBuilder?.renderPalette());
+    planningPaletteList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-add-candidate-id]");
+      if (!button || !activePlanningBuilder) return;
+      activePlanningBuilder.addCandidate(button.dataset.addCandidateId, activePlanningBuilder.getSelectedParent());
+    });
+    document.getElementById("planning-clear-all").addEventListener("click", () => {
+      if (!activePlanningBuilder) return;
+      while (activePlanningBuilder.root.firstChild) {
+        activePlanningBuilder.root.removeChild(activePlanningBuilder.root.firstChild);
+      }
+      activePlanningBuilder.selectParent(activePlanningBuilder.nodeId(activePlanningBuilder.root));
+      activePlanningBuilder.renderCanvas();
+      activePlanningBuilder.renderPalette();
+      planningBuilderStatus.textContent = "Cleared all planning elements. The <PlanningInsert> root was kept.";
+    });
+    document.getElementById("planning-builder-apply").addEventListener("click", () => {
+      if (!activePlanningBuilder) return;
+      try {
+        const xml = new XMLSerializer().serializeToString(activePlanningBuilder.root);
+        validateArguments(xml);
+        activePlanningBuilder.onApply(xml);
+        planningBuilderDialog.close();
+      } catch (error) {
+        planningBuilderStatus.textContent = `Could not apply planning: ${error.message}`;
+      }
+    });
+    document.getElementById("planning-builder-close").addEventListener("click", () => planningBuilderDialog.close());
+    document.getElementById("planning-builder-cancel").addEventListener("click", () => planningBuilderDialog.close());
+    planningBuilderDialog.addEventListener("close", () => { activePlanningBuilder = null; });
+
+    function findPlanningNode(root, id, nodeId) {
+      if (nodeId(root) === id) return root;
+      for (const child of Array.from(root.children)) {
+        const result = findPlanningNode(child, id, nodeId);
+        if (result) return result;
+      }
+      return null;
+    }
 
     function renderOperations() {
       for (const group of groupOrder) {
@@ -648,6 +1028,7 @@ Update_ViaRoute
             if (!fieldEditor.hidden) versionXml.set(currentName, fieldsDirty ? serializeFieldModel(fieldModel) : editor.value);
               else versionXml.set(currentName, editor.value);
               currentName = versionSelect.value;
+              if (planningBuilderButton) planningBuilderButton.hidden = currentName !== "Insert_Planning";
               editor.value = versionXml.has(currentName) ? versionXml.get(currentName) : argumentTemplates[currentName] || "";
               editor.setAttribute("aria-label", `${currentName} operation arguments as XML`);
               fieldEditor.setAttribute("aria-label", `${currentName} operation arguments as fields`);
@@ -665,6 +1046,36 @@ Update_ViaRoute
           }
           const actions = document.createElement("div");
           actions.className = "request-actions";
+          let planningBuilderButton = null;
+          if (family.names.includes("Insert_Planning")) {
+            planningBuilderButton = document.createElement("button");
+            planningBuilderButton.className = "tool-button";
+            planningBuilderButton.classList.add("planning-launch-button");
+            planningBuilderButton.type = "button";
+            planningBuilderButton.textContent = "Planning builder";
+            planningBuilderButton.hidden = currentName !== "Insert_Planning";
+            planningBuilderButton.addEventListener("click", (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            });
+            planningBuilderButton.addEventListener("click", () => {
+              try {
+                const currentXml = !fieldEditor.hidden && fieldsDirty
+                  ? serializeFieldModel(fieldModel)
+                  : editor.value;
+                openPlanningBuilder(currentXml, (xml) => {
+                  editor.value = xml;
+                  versionXml.set(currentName, xml);
+                  status.textContent = "";
+                  if (!fieldEditor.hidden) renderArgumentFields();
+                });
+                status.textContent = "";
+              } catch (error) {
+                status.textContent = `Could not open planning builder: ${error.message}`;
+              }
+            });
+            summary.append(planningBuilderButton);
+          }
           const reset = document.createElement("button");
           reset.className = "tool-button";
           reset.type = "button";
@@ -689,7 +1100,8 @@ Update_ViaRoute
           const status = document.createElement("span");
           status.className = "request-status";
           status.setAttribute("role", "status");
-          actions.append(send, reset, status);
+          actions.append(send, reset);
+          actions.append(status);
           const response = document.createElement("section");
           response.className = "response-box";
           response.hidden = true;

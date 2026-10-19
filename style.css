@@ -265,6 +265,7 @@
       cursor: pointer;
       font: 650 11px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
     }
+    .planning-launch-button { flex: 0 0 auto; min-height: 29px; padding: 0 9px; font-size: 11px; }
     .version-select:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px rgb(27 109 226 / 13%); }
     .op-body { padding: 0 15px 16px 82px; color: var(--muted); }
     .op-body p { margin: 0 0 11px; }
@@ -401,6 +402,116 @@
       text-decoration: none;
     }
     .op-link:hover { text-decoration: underline; }
+    .planning-builder-dialog {
+      width: min(1120px, calc(100% - 32px));
+      max-width: none;
+      height: min(850px, calc(100vh - 32px));
+      max-height: min(900px, calc(100% - 32px));
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid #cbd8e8;
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 24px 80px rgb(16 40 80 / 28%);
+    }
+    .planning-builder-dialog::backdrop { background: rgb(15 30 50 / 48%); }
+    .planning-builder { display: flex; height: 100%; max-height: 100%; flex-direction: column; }
+    .planning-builder-header {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 20px 22px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .planning-builder-header .eyebrow { margin-bottom: 4px; }
+    .planning-builder-header h2 { margin: 0; font-size: 23px; line-height: 1.2; }
+    .planning-builder-hint { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+    .planning-builder-close { flex: 0 0 auto; }
+    .planning-builder-layout {
+      display: grid;
+      min-height: 0;
+      flex: 1 1 auto;
+      grid-template-columns: minmax(0, 1fr) 310px;
+      grid-template-rows: minmax(0, 1fr);
+      overflow: hidden;
+    }
+    .planning-workspace { display: flex; min-width: 0; min-height: 0; flex-direction: column; padding: 15px 18px; }
+    .planning-workspace-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+    .planning-workspace-heading h3, .planning-palette h3 { margin: 0; color: #34445c; font-size: 14px; }
+    .planning-workspace-actions { display: flex; align-items: center; gap: 9px; }
+    #planning-drop-target { color: var(--blue); font-size: 11px; font-weight: 650; }
+    .planning-clear-all { min-height: 29px; padding: 0 9px; color: #8c3430; font-size: 11px; }
+    .planning-clear-all:hover { border-color: #e6b6b2; background: #fff5f4; color: #a91f17; }
+    .planning-canvas {
+      min-height: 0;
+      flex: 1 1 auto;
+      overflow: auto;
+      padding: 12px;
+      border: 1px solid #cbd8e8;
+      border-radius: 7px;
+      background-color: #f7f9fc;
+      background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+      background-position: 4px 4px;
+      background-size: 18px 18px;
+    }
+    .planning-root-block { overflow: hidden; border: 1px solid #a9c7ef; border-radius: 6px; background: white; box-shadow: 0 1px 4px rgb(16 40 80 / 8%); }
+    .planning-root-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px 6px 11px; background: #eaf2ff; color: #1656a8; font-size: 12px; font-weight: 750; }
+    .planning-dropzone { min-height: 36px; padding: 7px; border-radius: 5px; }
+    .planning-dropzone.is-selected { outline: 2px solid #75a9ef; outline-offset: -2px; background-color: #eef5ff; }
+    .planning-dropzone.is-over { outline: 2px dashed var(--blue); background-color: #e6f1ff; }
+    .planning-drop-hint { padding: 8px; color: #8190a4; font-size: 11px; font-style: italic; text-align: center; }
+    .planning-block { margin: 5px 0; overflow: hidden; border: 1px solid hsl(var(--planning-hue, 210) 42% 82%); border-radius: 5px; background: hsl(var(--planning-hue, 210) 62% 98%); }
+    .planning-block-header { display: flex; min-height: 35px; align-items: center; gap: 7px; padding: 4px 7px; background: hsl(var(--planning-hue, 210) 62% 96%); }
+    .planning-block-grip { color: #9aa8ba; font-size: 14px; user-select: none; }
+    .planning-block-name { min-width: 0; flex: 1 1 auto; color: #34445c; font: 650 11px/1.3 ui-monospace, "Cascadia Code", Consolas, monospace; overflow-wrap: anywhere; }
+    .planning-select-parent { min-height: 25px; flex: 0 0 auto; padding: 0 7px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; color: #52647d; cursor: pointer; font-size: 10px; font-weight: 650; }
+    .planning-select-parent:hover { border-color: #8da4c1; color: #1656a8; }
+    .planning-select-parent[aria-pressed="true"] { border-color: #8cb5ec; background: #eaf2ff; color: #1656a8; }
+    .planning-block-value { min-width: 80px; flex: 1 1 auto; height: 29px; padding: 0 7px; border: 1px solid #cbd5e1; border-radius: 4px; font: 12px ui-monospace, "Cascadia Code", Consolas, monospace; }
+    .planning-block-value:focus { border-color: var(--blue); outline: 2px solid rgb(27 109 226 / 15%); }
+    .planning-block-remove { width: 25px; height: 25px; flex: 0 0 25px; border: 0; border-radius: 4px; background: transparent; color: #8a5860; cursor: pointer; font-size: 17px; line-height: 1; }
+    .planning-block-remove:hover { background: #fff0ef; color: #a91f17; }
+    .planning-block-children { margin: 0 7px 7px 17px; border-left: 2px solid hsl(var(--planning-hue, 210) 38% 82%); background: hsl(var(--planning-hue, 210) 55% 98%); }
+    .planning-builder-status { min-height: 18px; margin: 8px 0 0; color: var(--muted); font-size: 11px; }
+    .planning-palette {
+      display: flex;
+      min-width: 0;
+      min-height: 0;
+      flex-direction: column;
+      gap: 9px;
+      padding: 15px;
+      border-left: 1px solid var(--line);
+      background: #fbfcfe;
+    }
+    .planning-palette .field-label { flex: 0 0 auto; }
+    .planning-available-filter { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; color: #34445c; cursor: pointer; font-size: 12px; font-weight: 600; }
+    .planning-available-filter input { width: 15px; height: 15px; margin: 0; accent-color: var(--blue); }
+    .planning-palette-hint { margin: 0; color: var(--muted); font-size: 11px; }
+    .planning-palette-list { display: grid; min-height: 0; flex: 1 1 auto; align-content: start; gap: 6px; overflow: auto; padding: 2px 3px 2px 1px; }
+    .planning-palette-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px; border: 1px solid hsl(var(--planning-hue, 210) 42% 82%); border-radius: 5px; background: hsl(var(--planning-hue, 210) 62% 98%); cursor: grab; }
+    .planning-palette-item:active { cursor: grabbing; }
+    .planning-palette-name { color: #34445c; font: 650 11px/1.3 ui-monospace, "Cascadia Code", Consolas, monospace; overflow-wrap: anywhere; }
+    .planning-palette-path { grid-column: 1 / -1; color: #7a899d; font-size: 10px; overflow-wrap: anywhere; }
+    .planning-palette-add { min-height: 27px; padding: 0 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: white; color: #34445c; cursor: pointer; font-size: 11px; font-weight: 650; }
+    .planning-palette-add:hover:not(:disabled) { border-color: #8da4c1; background: #f4f8fd; }
+    .planning-palette-add:disabled { color: #9aa8ba; cursor: not-allowed; opacity: .7; }
+    .planning-builder-footer { display: flex; flex: 0 0 auto; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line); background: white; }
+    @media (max-width: 720px) {
+      .planning-builder-dialog { width: calc(100% - 16px); max-height: calc(100% - 16px); }
+      .planning-builder-layout { grid-template-columns: minmax(0, 1fr) 235px; }
+      .planning-builder-header { padding: 15px; }
+      .planning-workspace { padding: 12px; }
+      .planning-palette { padding: 12px 9px; }
+    }
+    @media (max-width: 520px) {
+      .planning-builder-layout { grid-template-columns: 1fr; grid-template-rows: minmax(190px, 1fr) minmax(150px, 36vh); }
+      .planning-palette { border-top: 1px solid var(--line); border-left: 0; }
+      .planning-palette-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .planning-builder-hint { max-width: 290px; }
+    }
     .empty {
       display: none;
       padding: 34px;
