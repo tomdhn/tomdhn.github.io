@@ -496,6 +496,25 @@ Update_ViaRoute
     const linkFor = (name) => `https://txtangob.tx-connect.com/IWS_ASMX/service.asmx?op=${encodeURIComponent(name)}`;
     const container = document.getElementById("operations");
     const search = document.getElementById("search");
+    const bookmarkedGroup = document.getElementById("bookmarked-group");
+    const bookmarkedOperations = document.getElementById("bookmarked-operations");
+    const bookmarkedCount = document.getElementById("bookmarked-count");
+    const bookmarkStatus = document.getElementById("bookmark-status");
+    const bookmarkStorageKey = "txtango-bookmarked-operations";
+    let bookmarkedFamilies = new Set();
+    try {
+      const storedBookmarks = localStorage.getItem(bookmarkStorageKey);
+      if (storedBookmarks) {
+        const parsedBookmarks = JSON.parse(storedBookmarks);
+        if (!Array.isArray(parsedBookmarks) || parsedBookmarks.some((name) => typeof name !== "string")) {
+          throw new Error("Saved bookmarks have an invalid format.");
+        }
+        const validFamilies = new Set(operationFamilies.map((family) => family.baseName));
+        bookmarkedFamilies = new Set(parsedBookmarks.filter((name) => validFamilies.has(name)));
+      }
+    } catch (error) {
+      bookmarkStatus.textContent = `Could not load bookmarks: ${error.message}`;
+    }
     const planningBuilderDialog = document.getElementById("planning-builder-dialog");
     const planningCanvas = document.getElementById("planning-canvas");
     const planningPaletteSearch = document.getElementById("planning-palette-search");
@@ -877,11 +896,32 @@ Update_ViaRoute
       return null;
     }
 
+    function saveBookmarks(bookmarks) {
+      try {
+        localStorage.setItem(bookmarkStorageKey, JSON.stringify(Array.from(bookmarks)));
+      } catch (error) {
+        throw new Error(`Could not save bookmarks to browser storage: ${error.message}`);
+      }
+    }
+
+    function updateBookmarkButton(button, familyName) {
+      const isBookmarked = bookmarkedFamilies.has(familyName);
+      button.textContent = isBookmarked ? "★" : "☆";
+      button.setAttribute("aria-pressed", String(isBookmarked));
+      button.setAttribute(
+        "aria-label",
+        `${isBookmarked ? "Remove bookmark from" : "Bookmark"} ${familyName}`
+      );
+      button.title = isBookmarked ? "Remove bookmark" : "Bookmark this call";
+    }
+
     function renderOperations() {
+      const groupSections = new Map();
       for (const group of groupOrder) {
         const section = document.createElement("section");
         section.className = "group";
         section.dataset.group = group;
+        groupSections.set(group, section);
         const heading = document.createElement("h2");
         heading.className = "group-heading";
         heading.append(document.createTextNode(group));
@@ -899,6 +939,7 @@ Update_ViaRoute
           details.dataset.group = group;
           details.dataset.name = family.names.join(" ").toLowerCase();
           details.dataset.operationCount = String(family.names.length);
+          details.dataset.family = family.baseName;
           const summary = document.createElement("summary");
           const badge = document.createElement("span");
           badge.className = "verb";
@@ -907,7 +948,33 @@ Update_ViaRoute
           label.className = "op-name";
           label.textContent = family.isVersionFamily ? family.baseName : currentName;
           summary.append(badge, label);
+          const bookmarkButton = document.createElement("button");
+          bookmarkButton.className = "bookmark-button";
+          bookmarkButton.type = "button";
+          updateBookmarkButton(bookmarkButton, family.baseName);
+          bookmarkButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const updated = new Set(bookmarkedFamilies);
+            if (updated.has(family.baseName)) updated.delete(family.baseName);
+            else updated.add(family.baseName);
+            try {
+              saveBookmarks(updated);
+              bookmarkedFamilies = updated;
+              updateBookmarkButton(bookmarkButton, family.baseName);
+              const destination = bookmarkedFamilies.has(family.baseName)
+                ? bookmarkedOperations
+                : groupSections.get(group);
+              destination.append(details);
+              bookmarkStatus.textContent = "";
+              filterOperations();
+            } catch (error) {
+              bookmarkStatus.textContent = error.message;
+            }
+          });
           let versionSelect = null;
+          const versionControls = document.createElement("span");
+          versionControls.className = "version-controls";
           if (family.isVersionFamily) {
             versionSelect = document.createElement("select");
             versionSelect.className = "version-select";
@@ -920,16 +987,18 @@ Update_ViaRoute
             });
             versionSelect.value = currentName;
             versionSelect.addEventListener("click", (event) => event.stopPropagation());
-            summary.append(versionSelect);
+            versionControls.append(versionSelect);
           } else {
             const version = versionFor(currentName);
             if (version) {
               const versionBadge = document.createElement("span");
               versionBadge.className = "version";
               versionBadge.textContent = version;
-              summary.append(versionBadge);
+              versionControls.append(versionBadge);
             }
           }
+          versionControls.append(bookmarkButton);
+          summary.append(versionControls);
 
           const body = document.createElement("div");
           body.className = "op-body";
@@ -1160,24 +1229,36 @@ Update_ViaRoute
         }
         container.append(section);
       }
+      container.querySelectorAll(".operation").forEach((details) => {
+        if (bookmarkedFamilies.has(details.dataset.family)) bookmarkedOperations.append(details);
+      });
     }
 
     function filterOperations() {
       const query = search.value.trim().toLowerCase();
+      const allOperations = [
+        ...container.querySelectorAll(".operation"),
+        ...bookmarkedOperations.querySelectorAll(".operation")
+      ];
       let visible = 0;
+      allOperations.forEach((operation) => {
+        const matches = operation.dataset.name.includes(query);
+        operation.hidden = !matches;
+        if (matches) visible += Number(operation.dataset.operationCount);
+      });
       container.querySelectorAll(".group").forEach((section) => {
-        let visibleInGroup = 0;
-        section.querySelectorAll(".operation").forEach((operation) => {
-          const matches = operation.dataset.name.toLowerCase().includes(query);
-          operation.hidden = !matches;
-          if (matches) {
-            visibleInGroup++;
-            visible += Number(operation.dataset.operationCount);
-          }
-        });
+        const visibleInGroup = allOperations.filter((operation) =>
+          operation.dataset.group === section.dataset.group &&
+          operation.dataset.name.includes(query)
+        ).length;
         section.hidden = visibleInGroup === 0;
         section.querySelector(".group-count").textContent = String(visibleInGroup);
       });
+      const visibleBookmarks = allOperations.filter((operation) =>
+        bookmarkedFamilies.has(operation.dataset.family) && operation.dataset.name.includes(query)
+      ).length;
+      bookmarkedGroup.hidden = visibleBookmarks === 0;
+      bookmarkedCount.textContent = String(visibleBookmarks);
       document.getElementById("stats").innerHTML = `<strong>${visible}</strong> of <strong>${operationNames.length}</strong> operations`;
       document.getElementById("empty").style.display = visible ? "none" : "block";
     }
@@ -1715,8 +1796,10 @@ Update_ViaRoute
     initializeLoginProfiles();
     search.addEventListener("input", filterOperations);
     document.getElementById("expand-all").addEventListener("click", () => {
-      container.querySelectorAll(".operation").forEach((item) => { item.open = true; });
+      document.querySelectorAll("#operations .operation, #bookmarked-operations .operation")
+        .forEach((item) => { item.open = true; });
     });
     document.getElementById("collapse-all").addEventListener("click", () => {
-      container.querySelectorAll(".operation").forEach((item) => { item.open = false; });
+      document.querySelectorAll("#operations .operation, #bookmarked-operations .operation")
+        .forEach((item) => { item.open = false; });
     });

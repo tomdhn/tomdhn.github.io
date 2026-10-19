@@ -98,6 +98,13 @@
         <button class="tool-button" id="collapse-all" type="button">Collapse all</button>
       </div>
       <p class="stats" id="stats" aria-live="polite"></p>
+      <p class="bookmark-status" id="bookmark-status" role="status" aria-live="polite"></p>
+      <section class="group bookmarked-group" id="bookmarked-group" aria-labelledby="bookmarked-heading" hidden>
+        <h2 class="group-heading" id="bookmarked-heading">
+          Bookmarked calls <span class="group-count" id="bookmarked-count">0</span>
+        </h2>
+        <div id="bookmarked-operations"></div>
+      </section>
       <div id="operations"></div>
       <p class="empty" id="empty">No operations match your search.</p>
     </section>

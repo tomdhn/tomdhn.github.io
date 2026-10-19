@@ -164,6 +164,11 @@
     .tool-button:hover { border-color: #8da4c1; background: #f9fbfd; }
     .stats { margin: 0 0 17px; color: var(--muted); font-size: 13px; }
     .stats strong { color: var(--ink); }
+    .bookmark-status { min-height: 0; margin: -10px 0 10px; color: var(--red); font-size: 12px; }
+    .bookmark-status:empty { display: none; }
+    .bookmarked-group { padding: 12px 14px 5px; border: 1px solid #e7d9a5; border-radius: 8px; background: #fffdf6; }
+    .bookmarked-group .group-heading { color: #705c24; }
+    .bookmarked-group .group-count { background: #f4eccd; color: #705c24; }
     .group { margin: 18px 0 23px; scroll-margin-top: 18px; }
     .group-heading {
       display: flex;
@@ -220,6 +225,29 @@
     }
     .operation[open] summary::after { content: "−"; }
     .operation summary:hover { background: #f9fbfd; }
+    .version-controls {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
+    .bookmark-button {
+      width: 32px;
+      height: 32px;
+      flex: 0 0 32px;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      background: transparent;
+      color: #7b8798;
+      cursor: pointer;
+      font-size: 21px;
+      line-height: 1;
+    }
+    .bookmark-button:hover { border-color: #efe1af; background: #fff9e7; color: #9a7410; }
+    .bookmark-button[aria-pressed="true"] { color: #b38712; }
+    .bookmark-button[aria-pressed="true"]:hover { color: #8c6809; }
     .verb {
       flex: 0 0 57px;
       padding: 3px 5px;
@@ -244,7 +272,12 @@
       font-weight: 650;
     }
     .version {
-      margin-left: auto;
+      display: inline-flex;
+      width: 78px;
+      min-height: 28px;
+      flex: 0 0 78px;
+      align-items: center;
+      justify-content: center;
       padding: 2px 7px;
       border: 1px solid #e1e7ef;
       border-radius: 10px;
@@ -256,7 +289,6 @@
       flex: 0 0 78px;
       width: 78px;
       min-height: 28px;
-      margin-left: auto;
       padding: 2px 24px 2px 8px;
       border: 1px solid #cbd5e1;
       border-radius: 14px;
@@ -532,8 +564,7 @@
       .operation summary { gap: 8px; padding: 8px; }
       .verb { flex-basis: 50px; }
       .op-name { font-size: 12px; }
-      .version { display: none; }
-      .version-select { margin-left: auto; }
+      .version { display: inline-flex; }
       .op-body { padding-left: 66px; }
     }
     @media (max-width: 380px) { .login-fields { grid-template-columns: 1fr; } }
